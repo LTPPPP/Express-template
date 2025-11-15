@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # Express API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: express-template-api
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-900000}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-100}
+      # Database configuration (uncomment when using database)
+      # - DATABASE_URI=${DATABASE_URI}
+      # - DB_HOST=${DB_HOST:-db}
+      # - DB_PORT=${DB_PORT:-5432}
+      # - DB_NAME=${DB_NAME:-express_template}
+      # - DB_USER=${DB_USER:-postgres}
+      # - DB_PASSWORD=${DB_PASSWORD:-postgres}
+    volumes:
+      - ./src:/app/src
+      - ./dist:/app/dist
+    restart: unless-stopped
+    depends_on:
+      # - db  # Uncomment when using database
+      - redis
+    networks:
+      - express-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development API Service
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: express-template-api-dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    restart: unless-stopped
+    networks:
+      - express-network
+    profiles:
+      - dev
+
+  # Redis for caching/rate limiting (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: express-template-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - express-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # PostgreSQL Database (optional - uncomment when needed)
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: express-template-db
+  #   environment:
+  #     - POSTGRES_DB=${DB_NAME:-express_template}
+  #     - POSTGRES_USER=${DB_USER:-postgres}
+  #     - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+  #   ports:
+  #     - "${DB_PORT:-5432}:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   networks:
+  #     - express-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # MongoDB Database (optional - uncomment when needed)
+  # mongodb:
+  #   image: mongo:7
+  #   container_name: express-template-mongodb
+  #   environment:
+  #     - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
+  #     - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}
+  #   ports:
+  #     - "${MONGO_PORT:-27017}:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
+  #   restart: unless-stopped
+  #   networks:
+  #     - express-network
+  #   healthcheck:
+  #     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  redis-data:
+    driver: local
+  # postgres-data:
+  #   driver: local
+  # mongo-data:
+  #   driver: local
+
+networks:
+  express-network:
+    driver: bridge
+

@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Development API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: express-template-api-dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - API_PREFIX=${API_PREFIX:-/api/v1}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./package-lock.json:/app/package-lock.json
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - redis
+    networks:
+      - express-network
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: express-template-redis-dev
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-dev-data:/data
+    restart: unless-stopped
+    networks:
+      - express-network
+
+volumes:
+  redis-dev-data:
+    driver: local
+
+networks:
+  express-network:
+    driver: bridge
+
