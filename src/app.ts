@@ -1,6 +1,8 @@
 import express, { Application } from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
 import { appConfig } from './config/app';
+import { swaggerSpec } from './config/swagger';
 import { logger } from './middleware/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { securityHeaders, requestId } from './middleware/security';
@@ -45,6 +47,36 @@ class App {
    * Initialize routes
    */
   private initializeRoutes(): void {
+    // Swagger documentation
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+    /**
+     * @swagger
+     * /health:
+     *   get:
+     *     summary: Health check endpoint
+     *     description: Returns the health status of the server
+     *     tags: [Health]
+     *     responses:
+     *       200:
+     *         description: Server is healthy
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 status:
+     *                   type: string
+     *                   example: OK
+     *                 timestamp:
+     *                   type: string
+     *                   format: date-time
+     *                   example: 2024-01-01T00:00:00.000Z
+     *                 uptime:
+     *                   type: number
+     *                   description: Server uptime in seconds
+     *                   example: 1234.56
+     */
     // Health check route
     this.app.get('/health', (_req, res) => {
       res.json({
@@ -79,4 +111,3 @@ class App {
 }
 
 export default App;
-
